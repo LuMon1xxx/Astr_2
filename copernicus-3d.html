@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Коперник 3D — гелиоцентризм · §6 п.3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#ece7d6;font-family:"PT Serif",Georgia,serif}
+#scene{position:fixed;inset:0;width:100vw;height:100vh;display:block;cursor:grab}
+#scene:active{cursor:grabbing}
+#top{position:fixed;top:0;left:0;right:0;display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:10px 14px;pointer-events:none;z-index:5}
+#topBtns{pointer-events:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.iconbtn{font-family:"IBM Plex Mono",monospace;font-size:12px;color:#ece7d6;background:rgba(5,5,8,.72);border:1px solid rgba(236,231,214,.25);border-radius:999px;padding:9px 14px;cursor:pointer;backdrop-filter:blur(8px)}
+.iconbtn:hover{border-color:#c9a227}
+.iconbtn.on{background:#c9a227;color:#111;border-color:#c9a227;font-weight:500}
+#views{position:fixed;left:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:5;overflow-y:auto;padding:4px 2px;max-height:72vh}
+#views button{flex:0 0 auto;font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:8px 12px;min-height:36px;text-align:left;border-radius:999px;cursor:pointer;background:rgba(5,5,8,.72);border:1px solid rgba(236,231,214,.25);color:#e8e1c8;backdrop-filter:blur(8px);white-space:nowrap}
+#views button:hover{border-color:#c9a227}
+#views button.on{background:#c9a227;color:#111;border-color:#c9a227;font-weight:500}
+#panel{position:fixed;top:124px;right:14px;width:288px;z-index:5;background:rgba(6,6,10,.78);border:1px solid rgba(201,162,39,.3);border-radius:14px;padding:16px 16px 12px;backdrop-filter:blur(10px);max-height:calc(100vh - 142px);overflow-y:auto}
+#panel h3{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.2em;color:#e3c964;margin:0 0 6px;text-transform:uppercase}
+.ctl{margin:13px 0}
+.ctl label{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:12px;color:#cfc5a3;margin-bottom:6px}
+.ctl output{color:#e3c964}
+input[type=range]{width:100%;height:30px;accent-color:#c9a227;cursor:pointer}
+.row{display:flex;gap:8px;margin:10px 0 4px}
+.row button{flex:1;font-family:"IBM Plex Mono",monospace;font-size:12.5px;padding:11px 8px;border-radius:9px;cursor:pointer;border:1px solid rgba(236,231,214,.25);background:transparent;color:#ece7d6}
+.row button:hover{border-color:#c9a227}
+.row button.primary{background:#c9a227;color:#111;border-color:#c9a227;font-weight:500}
+#legend{margin-top:10px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:#b9ad8a;line-height:2}
+#legend i{display:inline-block;width:20px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+#note{font-size:12.5px;color:#a99f80;line-height:1.55;margin:10px 0 2px}
+#badges{position:fixed;left:14px;bottom:14px;display:flex;gap:8px;flex-wrap:wrap;z-index:5;font-family:"IBM Plex Mono",monospace;font-size:11px}
+.badge{border:1px solid rgba(236,231,214,.2);padding:6px 11px;border-radius:999px;background:rgba(0,0,0,.6)}
+#hudDay{border-color:#c9a227;color:#e3c964}
+#hudRetro{border-color:#c1442e;color:#ffb4a0;display:none}
+#hudEarth{border-color:#4aa3ff;color:#9ecbff;display:none}
+#panel::-webkit-scrollbar,#story::-webkit-scrollbar,#views::-webkit-scrollbar{display:none;width:0;height:0}
+#panel,#story,#views{scrollbar-width:none;-ms-overflow-style:none}
+#story{position:fixed;left:14px;top:124px;width:310px;z-index:5;background:rgba(6,6,10,.82);border:1px solid rgba(201,162,39,.3);border-radius:14px;padding:14px 16px;backdrop-filter:blur(10px);font-size:13.5px;line-height:1.55;display:none;max-height:calc(100vh - 160px);overflow-y:auto}
+#story.open{display:block}
+#story b{color:#e3c964}
+#story table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+#story td{border-top:1px solid rgba(236,231,214,.12);padding:6px 2px;vertical-align:top}
+#warn{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;background:#3a1e1a;border:1px solid #c1442e;color:#ffb4a0;padding:18px 22px;font-family:monospace;font-size:13px;border-radius:10px;max-width:88vw}
+@media(max-width:760px){
+  #panel{top:auto;bottom:14px;right:8px;left:8px;width:auto;padding:12px;max-height:44vh}
+  #story{left:8px;right:8px;width:auto}
+  #views{left:8px}
+}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="top">
+  <div id="topBtns">
+    <button class="iconbtn" id="btnStory">☰ Что рассказывать</button>
+    <button class="iconbtn" id="btnPanel">⚙ Пульт</button>
+    <button class="iconbtn" onclick="location.href='ptolemy-3d.html'">⊕ Птолемей (геоцентр)</button>
+    <button class="iconbtn" onclick="location.href='brahe-3d.html'">✦ Тихо Браге (компромисс)</button>
+    <button class="iconbtn" onclick="location.href='index.html'">← Сайт</button>
+  </div>
+</div>
+
+<div id="views">
+  <button data-v="all" class="on">Вся система</button>
+  <button data-v="inner">Внутренние</button>
+  <button data-v="mars">Марс крупно</button>
+  <button data-v="earth">👁 Вид с Земли</button>
+</div>
+
+<div id="story">
+  <b>Формула на 30 секунд:</b> Солнце в центре, Земля — третья планета: за год облетает Солнце и за сутки крутится вокруг оси. Петли — это <b>обгон</b>: Земля догоняет Марс, и он кажется пятящимся на фоне звёзд (рис. 25 учебника). Когда Земля между Солнцем и Марсом — <b>противостояние</b>: Марс ближе всего, виден всю ночь.
+  <table>
+    <tr><td><b>Меркурий</b></td><td>0,39 а.е. · год 88 дней · Ø 4 879 км</td></tr>
+    <tr><td><b>Венера</b></td><td>0,72 а.е. · год 225 дней · Ø 12 104 км</td></tr>
+    <tr><td><b>Земля</b></td><td>1 а.е. · год 365 дней · Ø 12 742 км + Луна</td></tr>
+    <tr><td><b>Марс</b></td><td>1,5 а.е. · год 687 дней · Ø 6 779 км</td></tr>
+    <tr><td><b>Юпитер</b></td><td>5,2 а.е. · год 12 лет · Ø 139 820 км</td></tr>
+    <tr><td><b>Сатурн</b></td><td>9,6 а.е. · год 29 лет · Ø 116 460 км + кольца</td></tr>
+  </table>
+  Трюк: включи «Вид с Земли» и дождись красного бейджа — Марс попятится. Потом открой Птолемея и покажи, сколько кругов ему понадобилось ради того же.
+</div>
+
+<div id="panel">
+  <h3>Пульт · гелиоцентр</h3>
+  <div class="ctl"><label>Скорость времени <output id="oSp">40 дн/с</output></label><input id="rSp" type="range" min="2" max="240" value="40"></div>
+  <div class="ctl"><label>Длина следа Земли и Марса <output id="oTrail">600</output></label><input id="rTrail" type="range" min="0" max="2000" step="50" value="600"></div>
+  <div class="row">
+    <button class="primary" id="btnPlay">⏸ Пауза</button>
+    <button class="primary" id="btnOrbits">Орбиты: вкл</button>
+  </div>
+  <div id="legend">
+    <div><i style="background:#ffd75e"></i>Солнце (центр)</div>
+    <div><i style="background:#9c8e82"></i>Меркурий · <i style="background:#e3c964"></i>Венера</div>
+    <div><i style="background:#4aa3ff"></i>Земля + Луна · <i style="background:#ff5a3c"></i>Марс</div>
+    <div><i style="background:#d08040"></i>Юпитер · <i style="background:#d9c08a"></i>Сатурн</div>
+  </div>
+  <p id="note">Расстояния сжаты (иначе Сатурн не влезет), периоды — настоящие. Размеры — в пропорции друг к другу, но Солнце и гиганты ужаты (настоящее Солнце — 109 Земель).</p>
+</div>
+
+<div id="badges"><span class="badge" id="hudDay">ДЕНЬ 0</span><span class="badge" id="hudRetro">● МАРС ПЯТИТСЯ</span><span class="badge" id="hudEarth">👁 ВИД С ЗЕМЛИ</span></div>
+<div id="warn">⚠ Three.js не загрузился — нужен интернет (CDN unpkg).</div>
+
+<script type="module">
+let THREE, OrbitControls;
+try {
+  THREE = await import('three');
+  ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+} catch (e) {
+  document.getElementById('warn').style.display = 'block';
+  throw e;
+}
+
+// периуды — настоящие (в годах), расстояния — сжаты для экрана
+const PLANETS = [
+  { key: 'mercury', dist: 4.0,  period: 0.241,  size: 0.16, tex: 'mercurymap.jpg',  color: 0x9c8e82, spin: 0.3 },
+  { key: 'venus',   dist: 5.5,  period: 0.615,  size: 0.34, tex: 'venusmap.jpg',    color: 0xe3c964, spin: 0.15 },
+  { key: 'earth',   dist: 7.0,  period: 1.0,    size: 0.36, tex: 'earthmap1k.jpg',  color: 0x4aa3ff, spin: 1.2, moon: true },
+  { key: 'mars',    dist: 8.8,  period: 1.881,  size: 0.20, tex: 'marsmap1k.jpg',   color: 0xff5a3c, spin: 1.1 },
+  { key: 'jupiter', dist: 14.0, period: 11.86,  size: 1.05, tex: 'jupitermap.jpg',  color: 0xd08040, spin: 2.0 },
+  { key: 'saturn',  dist: 19.0, period: 29.45,  size: 0.85, tex: 'saturnmap.jpg',   color: 0xd9c08a, spin: 1.8, rings: true },
+];
+const P = { daysPerSec: 40, trail: 600 };
+let days = 0, playing = true, earthView = false, orbitsOn = true;
+
+const TEX_BASE = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';
+const texLoader = new THREE.TextureLoader();
+function fetchTex(file, onOk) {
+  texLoader.load(TEX_BASE + file,
+    (t) => { t.colorSpace = THREE.SRGBColorSpace; onOk(t); },
+    undefined, () => {});
+}
+
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 600);
+camera.position.set(0, 24, 33);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 120;
+
+scene.add(new THREE.AmbientLight(0xfff2d0, 0.9));
+const sunLight = new THREE.DirectionalLight(0xfff2d0, 1.6);
+sunLight.position.set(14, 20, 10);
+scene.add(sunLight);
+
+// звёзды — неподвижный фон (по нему видно попятное движение!)
+{
+  const n = 2200, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  const c = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    const r = 90 + Math.random() * 140, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+    pos[i*3] = r * Math.sin(ph) * Math.cos(th);
+    pos[i*3+1] = r * Math.cos(ph);
+    pos[i*3+2] = r * Math.sin(ph) * Math.sin(th);
+    const warm = Math.random();
+    c.setHSL(warm < 0.75 ? 0.11 : 0.6, warm < 0.75 ? 0.35 : 0.3, 0.75 + Math.random() * 0.25);
+    col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 0.6, vertexColors: true, transparent: true, opacity: 0.9 })));
+}
+
+// Солнце в центре
+const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(1.6, 48, 48), new THREE.MeshBasicMaterial({ color: 0xffd75e }));
+fetchTex('sunmap.jpg', (t) => { sunMesh.material.map = t; sunMesh.material.color.setHex(0xffffff); sunMesh.material.needsUpdate = true; });
+scene.add(sunMesh);
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(2.1, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.28 })));
+
+// планеты
+const orbitsGroup = new THREE.Group();
+scene.add(orbitsGroup);
+const bodies = {};
+for (const pr of PLANETS) {
+  const pivot = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: pr.color, roughness: 0.9, metalness: 0 });
+  fetchTex(pr.tex, (t) => { mat.map = t; mat.color.setHex(0xffffff); mat.needsUpdate = true; });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(pr.size, 40, 40), mat);
+  mesh.position.set(pr.dist, 0, 0);
+  pivot.add(mesh);
+  if (pr.moon) {
+    const moonPivot = new THREE.Group();
+    moonPivot.position.copy(mesh.position);
+    const moonMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb, roughness: 1 });
+    fetchTex('moonmap1k.jpg', (t) => { moonMat.map = t; moonMat.color.setHex(0xffffff); moonMat.needsUpdate = true; });
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(0.1, 20, 20), moonMat);
+    moon.position.set(0.7, 0, 0);
+    moonPivot.add(moon);
+    pivot.add(moonPivot);
+    pr.moonPivot = moonPivot;
+    pr.moonMesh = moon;
+  }
+  if (pr.rings) {
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xd9c08a, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+    fetchTex('saturnringcolor.jpg', (t) => { ringMat.map = t; ringMat.needsUpdate = true; });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(pr.size * 1.3, pr.size * 2.2, 72), ringMat);
+    ring.rotation.x = -Math.PI / 2 + 0.18;
+    mesh.add(ring);
+  }
+  // кольцо орбиты
+  const pts = [];
+  for (let a = 0; a <= 180; a++) pts.push(new THREE.Vector3(Math.cos(a/180*Math.PI*2)*pr.dist, 0, Math.sin(a/180*Math.PI*2)*pr.dist));
+  const isEarth = pr.key === 'earth';
+  orbitsGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: isEarth ? 0xe3c964 : 0xffffff, transparent: true, opacity: isEarth ? 0.4 : 0.14 })));
+  scene.add(pivot);
+  bodies[pr.key] = { pr, pivot, mesh };
+  // стартовые углы вразброс, чтобы не стояли в ряд
+  pivot.rotation.y = Math.random() * Math.PI * 2;
+}
+// Землю и Марс сразу развести: Земля напротив Марса (скоро догонит — будет петля!)
+bodies.earth.pivot.rotation.y = 0;
+bodies.mars.pivot.rotation.y = 0.9;
+
+// следы Земли и Марса
+const trailMatE = new THREE.LineBasicMaterial({ color: 0x4aa3ff, transparent: true, opacity: 0.7 });
+const trailMatM = new THREE.LineBasicMaterial({ color: 0xff5a3c, transparent: true, opacity: 0.85 });
+let trailE = [], trailM = [], lineE = null, lineM = null;
+function rebuildTrails() {
+  if (lineE) { scene.remove(lineE); lineE.geometry.dispose(); lineE = null; }
+  if (lineM) { scene.remove(lineM); lineM.geometry.dispose(); lineM = null; }
+  if (trailE.length > 1) { lineE = new THREE.Line(new THREE.BufferGeometry().setFromPoints(trailE), trailMatE); scene.add(lineE); }
+  if (trailM.length > 1) { lineM = new THREE.Line(new THREE.BufferGeometry().setFromPoints(trailM), trailMatM); scene.add(lineM); }
+}
+
+const $ = id => document.getElementById(id);
+const hudDay = $('hudDay'), hudRetro = $('hudRetro'), hudEarth = $('hudEarth');
+let prevAppAng = null;
+
+function bind(id, out, fn, fmt) {
+  const r = $(id), o = $(out);
+  const update = () => { const v = +r.value; fn(v); o.textContent = fmt(v); };
+  r.addEventListener('input', update);
+  update();
+}
+bind('rSp','oSp', v => P.daysPerSec = v, v => v + ' дн/с');
+bind('rTrail','oTrail', v => { P.trail = v; trimTrails(); }, v => v);
+
+function trimTrails() {
+  while (trailE.length > P.trail) trailE.shift();
+  while (trailM.length > P.trail) trailM.shift();
+}
+function clearTrails() { trailE = []; trailM = []; rebuildTrails(); prevAppAng = null; hudRetro.style.display = 'none'; }
+
+$('btnPlay').addEventListener('click', () => { playing = !playing; $('btnPlay').textContent = playing ? '⏸ Пауза' : '▶ Пуск'; });
+$('btnOrbits').addEventListener('click', () => {
+  orbitsOn = !orbitsOn;
+  orbitsGroup.visible = orbitsOn;
+  $('btnOrbits').textContent = orbitsOn ? 'Орбиты: вкл' : 'Орбиты: выкл';
+  $('btnOrbits').classList.toggle('primary', orbitsOn);
+});
+$('btnPanel').addEventListener('click', () => {
+  const p = $('panel'); p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+});
+$('btnStory').addEventListener('click', () => $('story').classList.toggle('open'));
+
+function setView(v) {
+  document.querySelectorAll('#views button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  earthView = (v === 'earth');
+  controls.enabled = !earthView;
+  hudEarth.style.display = earthView ? 'inline-block' : 'none';
+  if (!earthView) controls.update();
+  if (v === 'all') camera.position.set(0, 24, 33);
+  if (v === 'inner') camera.position.set(0, 10, 15);
+  if (v === 'mars') {
+    const m = bodies.mars.mesh.getWorldPosition(new THREE.Vector3());
+    camera.position.set(m.x + 4, 3.5, m.z + 7);
+  }
+}
+document.querySelectorAll('#views button').forEach(b => b.addEventListener('click', () => setView(b.dataset.v)));
+addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+    e.preventDefault(); $('btnPlay').click();
+  }
+});
+
+function fit() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', fit);
+fit();
+
+const TAU = Math.PI * 2;
+let last = performance.now();
+const tmpV = new THREE.Vector3();
+function planetPos(key, out) {
+  return bodies[key].mesh.getWorldPosition(out || new THREE.Vector3());
+}
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (playing) days += dt * P.daysPerSec;
+
+  for (const pr of PLANETS) {
+    const b = bodies[pr.key];
+    b.pivot.rotation.y = (b.pivot.userData.a0 ?? (b.pivot.userData.a0 = b.pivot.rotation.y)) - (days / (pr.period * 365.25)) * TAU;
+    b.mesh.rotation.y += dt * pr.spin;
+    if (pr.moonPivot) pr.moonPivot.rotation.y = -(days / 27.3) * TAU;
+  }
+  sunMesh.rotation.y += dt * 0.1;
+
+  const ePos = planetPos('earth', tmpV).clone();
+  const mPos = planetPos('mars');
+
+  if (playing && P.trail > 0) {
+    trailE.push(ePos.clone());
+    trailM.push(mPos.clone());
+    trimTrails();
+    rebuildTrails();
+  }
+
+  // видимое движение Марса с Земли: знак смены долготы
+  const dx = mPos.x - ePos.x, dz = mPos.z - ePos.z;
+  const appAng = Math.atan2(dz, dx);
+  if (prevAppAng !== null) {
+    let d = appAng - prevAppAng;
+    if (d > Math.PI) d -= TAU;
+    if (d < -Math.PI) d += TAU;
+    hudRetro.style.display = d < 0 ? 'inline-block' : 'none';
+  }
+  prevAppAng = appAng;
+  hudDay.textContent = 'ДЕНЬ ' + Math.floor(days) + ' · ' + (days / 365.25).toFixed(1) + ' Г';
+
+  if (earthView) {
+    camera.position.set(ePos.x, ePos.y + 3.2, ePos.z + 6.5);
+    camera.lookAt(mPos.x, 0.4, mPos.z);
+  } else {
+    controls.update();
+  }
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

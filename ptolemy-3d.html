@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Птолемей 3D — эпициклы на весь экран · §6 п.2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#ece7d6;font-family:"PT Serif",Georgia,serif}
+#scene{position:fixed;inset:0;width:100vw;height:100vh;display:block;cursor:grab}
+#scene:active{cursor:grabbing}
+.mono{font-family:"IBM Plex Mono",monospace}
+/* верхняя плашка */
+#top{position:fixed;top:0;left:0;right:0;display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:10px 14px;pointer-events:none;z-index:5}
+#topBtns{pointer-events:auto;display:flex;gap:8px}
+.iconbtn{font-family:"IBM Plex Mono",monospace;font-size:12px;color:#ece7d6;background:rgba(5,5,8,.72);border:1px solid rgba(236,231,214,.25);border-radius:999px;padding:9px 14px;cursor:pointer;backdrop-filter:blur(8px)}
+.iconbtn:hover{border-color:#c9a227}
+/* пресеты — лента сверху по центру */
+#presets{position:fixed;left:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:5;overflow-y:auto;padding:4px 2px;max-height:72vh}
+#presets button{flex:0 0 auto;font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:8px 12px;min-height:36px;text-align:left;border-radius:999px;cursor:pointer;background:rgba(5,5,8,.72);border:1px solid rgba(236,231,214,.25);color:#e8e1c8;backdrop-filter:blur(8px);white-space:nowrap}
+#presets button:hover{border-color:#c9a227}
+#presets button.on{background:#c9a227;color:#111;border-color:#c9a227;font-weight:500}
+/* пульт справа */
+#panel{position:fixed;top:132px;right:14px;width:288px;z-index:5;background:rgba(6,6,10,.78);border:1px solid rgba(201,162,39,.3);border-radius:14px;padding:16px 16px 12px;backdrop-filter:blur(10px);max-height:calc(100vh - 150px);overflow-y:auto}
+#panel h3{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.2em;color:#e3c964;margin:0 0 6px;text-transform:uppercase}
+.ctl{margin:13px 0}
+.ctl label{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:12px;color:#cfc5a3;margin-bottom:6px}
+.ctl output{color:#e3c964}
+input[type=range]{width:100%;height:30px;accent-color:#c9a227;cursor:pointer}
+.row{display:flex;gap:8px;margin:10px 0 4px}
+.row button{flex:1;font-family:"IBM Plex Mono",monospace;font-size:12.5px;padding:11px 8px;border-radius:9px;cursor:pointer;border:1px solid rgba(236,231,214,.25);background:transparent;color:#ece7d6}
+.row button:hover{border-color:#c9a227}
+.row button.primary{background:#c9a227;color:#111;border-color:#c9a227;font-weight:500}
+#legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:#b9ad8a}
+#legend i{display:inline-block;width:20px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+#note{font-size:12.5px;color:#a99f80;line-height:1.55;margin:10px 0 2px}
+/* бейджи снизу слева */
+#badges{position:fixed;left:14px;bottom:14px;display:flex;gap:8px;flex-wrap:wrap;z-index:5;font-family:"IBM Plex Mono",monospace;font-size:11px}
+/* скроллбары полностью невидимы, прокрутка работает */
+#panel::-webkit-scrollbar,#story::-webkit-scrollbar,#presets::-webkit-scrollbar{display:none;width:0;height:0}
+#panel,#story,#presets{scrollbar-width:none;-ms-overflow-style:none}
+.badge{border:1px solid rgba(236,231,214,.2);padding:6px 11px;border-radius:999px;background:rgba(0,0,0,.6)}
+#hudRetro{border-color:#c1442e;color:#ffb4a0;display:none}
+/* рассказ */
+#story{position:fixed;left:14px;top:124px;width:300px;z-index:5;background:rgba(6,6,10,.82);border:1px solid rgba(201,162,39,.3);border-radius:14px;padding:14px 16px;backdrop-filter:blur(10px);font-size:13.5px;line-height:1.55;display:none;max-height:calc(100vh - 160px);overflow-y:auto}
+#story.open{display:block}
+#story b{color:#e3c964}
+#story table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+#story td{border-top:1px solid rgba(236,231,214,.12);padding:6px 2px;vertical-align:top}
+#warn{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;background:#3a1e1a;border:1px solid #c1442e;color:#ffb4a0;padding:18px 22px;font-family:monospace;font-size:13px;border-radius:10px;max-width:88vw}
+@media(max-width:760px){
+  #panel{top:auto;bottom:56px;right:8px;left:8px;width:auto;padding:12px}
+  #story{left:8px;right:8px;width:auto}
+  #presets{left:8px}
+}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="top">
+  <div id="topBtns">
+    <button class="iconbtn" id="btnStory">☰ Что рассказывать</button>
+    <button class="iconbtn" id="btnPanel">⚙ Пульт</button>
+    <button class="iconbtn" onclick="location.href='copernicus-3d.html'">☀ Коперник (как правильно)</button>
+    <button class="iconbtn" onclick="location.href='brahe-3d.html'">✦ Тихо Браге (компромисс)</button>
+    <button class="iconbtn" onclick="location.href='index.html'">← Сайт</button>
+  </div>
+</div>
+
+<div id="presets">
+  <button data-p="mars" class="on">Марс · классика</button>
+  <button data-p="venera">Венера · нижняя</button>
+  <button data-p="jupiter">Юпитер · верхний</button>
+  <button data-p="soft">Плавные петли</button>
+  <button data-p="nibiru">Нибиру ★ выдум.</button>
+  <button data-p="chaos">Хаос Птолемея</button>
+</div>
+
+<div id="story">
+  <b>Формула на 30 секунд:</b> планета P идёт по малому кругу — <b>эпициклу</b>, центр эпицикла едет по большому кругу вокруг неподвижной Земли — <b>деференту</b>. Сумма даёт петлю = попятное движение.
+  <table>
+    <tr><td><b>Марс</b></td><td>классика из учебника, большие петли</td></tr>
+    <tr><td><b>Венера</b></td><td>маленький быстрый эпицикл — частые мелкие петли</td></tr>
+    <tr><td><b>Юпитер</b></td><td>огромный деферент — ползёт медленно</td></tr>
+    <tr><td><b>Нибиру ★</b></td><td>выдуманная, наклон 35° — петли уходят вверх-вниз</td></tr>
+    <tr><td><b>Хаос</b></td><td>поздний Птолемей: «громоздко и неудобно»</td></tr>
+    <tr><td><b>Солнце ☀</b></td><td>у Птолемея тоже обращается вокруг Земли — кнопка в пульте</td></tr>
+  </table>
+  Трюк: смотри «с ребра» — при наклоне видно, что петля не плоская. Про это в §6: круги «с различными наклонами».
+</div>
+
+<div id="panel">
+  <h3>Пульт</h3>
+  <div class="ctl"><label>Радиус деферента <output id="oR1">180</output></label><input id="rR1" type="range" min="120" max="260" value="180"></div>
+  <div class="ctl"><label>Радиус эпицикла <output id="oR2">110</output></label><input id="rR2" type="range" min="15" max="140" value="110"></div>
+  <div class="ctl"><label>Скорость деферента <output id="oW1">0.8×</output></label><input id="rW1" type="range" min="20" max="250" value="80"></div>
+  <div class="ctl"><label>Скорость эпицикла <output id="oW2">−2.3×</output></label><input id="rW2" type="range" min="-500" max="500" value="-230"></div>
+  <div class="ctl"><label>Наклон эпицикла <output id="oIncl">8°</output></label><input id="rIncl" type="range" min="0" max="60" value="8"></div>
+  <div class="ctl"><label>Длина следа <output id="oTrail">900</output></label><input id="rTrail" type="range" min="100" max="2500" step="50" value="900"></div>
+  <div class="ctl"><label>Темп времени <output id="oSp">1.0×</output></label><input id="rSp" type="range" min="5" max="150" value="100"></div>
+  <div class="ctl"><label>Скорость Солнца <output id="oSun">0.25×</output></label><input id="rSun" type="range" min="0" max="100" value="25"></div>
+  <div class="row">
+    <button class="primary" id="btnPlay">⏸ Пауза</button>
+    <button id="btnClear">Очистить</button>
+  </div>
+  <div class="row">
+    <button class="primary" id="btnSun">☀ Солнце: вкл</button>
+  </div>
+  <div id="legend"><span><i style="background:#4aa3ff"></i>Земля</span><span><i style="background:#ff5a3c"></i>планета</span><span><i style="background:#e3c964"></i>деферент</span><span><i style="background:#ffd75e"></i>Солнце</span></div>
+  <p id="note">Двойной клик — вернуть камеру. Покрути сцену мышкой. Размеры реальных планет — в пропорции (гигант Юпитер и Солнце ужаты, иначе не влезут).</p>
+</div>
+
+<div id="badges"><span class="badge" id="hudRetro">● ПОПЯТНОЕ</span></div>
+<div id="warn">⚠ Three.js не загрузился — нужен интернет (CDN unpkg). Покажите 2D-симулятор из index.html.</div>
+
+<script type="module">
+let THREE, OrbitControls;
+try {
+  THREE = await import('three');
+  ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+} catch (e) {
+  document.getElementById('warn').style.display = 'block';
+  throw e;
+}
+
+const P = { R1: 180, R2: 110, W1: 80, W2: -230, Incl: 8, Trail: 900, Speed: 100, Sun: 25 };
+const PRESETS = {
+  mars:    { R1: 180, R2: 110, W1: 80,  W2: -230, Incl: 8,  color: 0xff5a3c, size: 0.32, name: 'МАРС · КЛАССИКА', tex: 'marsmap1k.jpg' },
+  venera:  { R1: 150, R2: 60,  W1: 120, W2: -500, Incl: 5,  color: 0xe3c964, size: 0.57, name: 'ВЕНЕРА · НИЖНЯЯ', tex: 'venusmap.jpg' },
+  jupiter: { R1: 240, R2: 55,  W1: 40,  W2: -330, Incl: 4,  color: 0xd08040, size: 1.00, name: 'ЮПИТЕР · ВЕРХНИЙ', tex: 'jupitermap.jpg' },
+  soft:    { R1: 220, R2: 34,  W1: 90,  W2: -260, Incl: 12, color: 0xc9a227, size: 0.36, name: 'ПЛАВНЫЕ ПЕТЛИ', tex: null },
+  nibiru:  { R1: 200, R2: 95,  W1: 80,  W2: -280, Incl: 35, color: 0x7fb8a0, size: 0.44, name: 'НИБИРУ ★ ВЫДУМАННАЯ', tex: 'proc:nibiru' },
+  chaos:   { R1: 180, R2: 120, W1: 120, W2: 420,  Incl: 28, color: 0xff2a1a, size: 0.38, name: 'ХАОС ПТОЛЕМЕЯ', tex: 'proc:chaos' },
+};
+
+// ---- текстуры: реальные (NASA, threex.planets через jsDelivr) + процедурные для выдуманных ----
+const TEX_BASE = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';
+const texLoader = new THREE.TextureLoader();
+const texCache = {};
+function fetchTex(file, onOk) {
+  texLoader.load(TEX_BASE + file,
+    (t) => { t.colorSpace = THREE.SRGBColorSpace; onOk(t); },
+    undefined,
+    () => { /* оффлайн — остаётся плоский цвет, симулятор работает */ });
+}
+// процедурная текстура для выдуманных планет (работает и без интернета)
+function makeProcTex(kind) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const g = c.getContext('2d');
+  if (kind === 'nibiru') {
+    g.fillStyle = '#3f6b5e'; g.fillRect(0, 0, 256, 128);
+    for (let y = 0; y < 128; y += 7) { g.fillStyle = y % 14 ? 'rgba(127,184,160,.35)' : 'rgba(20,40,35,.45)'; g.fillRect(0, y, 256, 4); }
+    for (let i = 0; i < 500; i++) { g.fillStyle = `rgba(230,255,245,${Math.random() * .18})`; g.fillRect(Math.random()*256, Math.random()*128, 2, 2); }
+  } else {
+    g.fillStyle = '#4a0f08'; g.fillRect(0, 0, 256, 128);
+    for (let i = 0; i < 260; i++) {
+      g.fillStyle = Math.random() < .5 ? `rgba(255,${60 + Math.random()*60|0},20,${.15 + Math.random()*.4})` : `rgba(0,0,0,${.2 + Math.random()*.4})`;
+      const r = 2 + Math.random() * 9;
+      g.beginPath(); g.arc(Math.random()*256, Math.random()*128, r, 0, 7); g.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+// фоновая подгрузка реальных текстур, чтобы пресеты переключались мгновенно
+['marsmap1k.jpg', 'venusmap.jpg', 'jupitermap.jpg', 'earthmap1k.jpg'].forEach(f =>
+  fetchTex(f, (t) => { texCache[f] = t; }));
+
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+scene.fog = new THREE.Fog(0x000000, 70, 160);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 600);
+const CAM0 = new THREE.Vector3(0, 17, 27);
+camera.position.copy(CAM0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 8;
+controls.maxDistance = 90;
+renderer.domElement.addEventListener('dblclick', () => camera.position.copy(CAM0));
+
+scene.add(new THREE.AmbientLight(0xfff2d0, 0.9));
+const sun = new THREE.DirectionalLight(0xfff2d0, 1.8);
+sun.position.set(14, 22, 10);
+scene.add(sun);
+
+// звёзды — гуще, на весь экран
+{
+  const n = 2200, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  const c = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    const r = 80 + Math.random() * 120, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+    pos[i*3] = r * Math.sin(ph) * Math.cos(th);
+    pos[i*3+1] = r * Math.cos(ph);
+    pos[i*3+2] = r * Math.sin(ph) * Math.sin(th);
+    const warm = Math.random();
+    c.setHSL(warm < 0.75 ? 0.11 : 0.6, warm < 0.75 ? 0.35 : 0.3, 0.75 + Math.random() * 0.25);
+    col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 0.55, vertexColors: true, transparent: true, opacity: 0.9 })));
+}
+
+const S = 1 / 20;
+const world = v => v * S;
+
+const earthMat = new THREE.MeshStandardMaterial({ color: 0x4aa3ff, roughness: 0.85, metalness: 0 });
+if (texCache['earthmap1k.jpg']) {
+  earthMat.map = texCache['earthmap1k.jpg'];
+  earthMat.color.setHex(0xffffff);
+} else {
+  fetchTex('earthmap1k.jpg', (t) => {
+    texCache['earthmap1k.jpg'] = t;
+    earthMat.map = t; earthMat.color.setHex(0xffffff); earthMat.needsUpdate = true;
+  });
+}
+const earth = new THREE.Mesh(new THREE.SphereGeometry(0.6, 48, 48), earthMat);
+scene.add(earth);
+scene.add(new THREE.Mesh(
+  new THREE.SphereGeometry(0.8, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0x4aa3ff, transparent: true, opacity: 0.15 })
+));
+// эклиптика-сетка
+for (let i = 0; i < 4; i++) {
+  const r = 5 + i * 3.2, pts = [];
+  for (let a = 0; a <= 160; a++) pts.push(new THREE.Vector3(Math.cos(a/160*Math.PI*2)*r, 0, Math.sin(a/160*Math.PI*2)*r));
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.07 })));
+}
+
+// Солнце по Птолемею: тоже обращается вокруг неподвижной Земли
+const SUN_R = 17;
+const sunSys = new THREE.Group();
+{
+  const pts = [];
+  for (let a = 0; a <= 180; a++) pts.push(new THREE.Vector3(Math.cos(a/180*Math.PI*2)*SUN_R, 0, Math.sin(a/180*Math.PI*2)*SUN_R));
+  sunSys.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: 0xffd75e, transparent: true, opacity: 0.35 })));
+}
+const sunMover = new THREE.Group();
+sunMover.add(new THREE.Mesh(new THREE.SphereGeometry(0.9, 40, 40), new THREE.MeshBasicMaterial({ color: 0xffd75e })));
+sunMover.add(new THREE.Mesh(new THREE.SphereGeometry(1.3, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.25 })));
+sunSys.add(sunMover);
+scene.add(sunSys);
+let sunOn = true;
+
+let deferentLine;
+function rebuildDeferent() {
+  if (deferentLine) { scene.remove(deferentLine); deferentLine.geometry.dispose(); }
+  const pts = [], R = world(P.R1);
+  for (let a = 0; a <= 180; a++) pts.push(new THREE.Vector3(Math.cos(a/180*Math.PI*2)*R, 0, Math.sin(a/180*Math.PI*2)*R));
+  deferentLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: 0xe3c964, transparent: true, opacity: 0.9 }));
+  scene.add(deferentLine);
+}
+
+const epiLine = new THREE.Line(new THREE.BufferGeometry(),
+  new THREE.LineBasicMaterial({ color: 0xff8a70, transparent: true, opacity: 0.85 }));
+scene.add(epiLine);
+function rebuildEpicycle(cx, cy, cz) {
+  const pts = [], R = world(P.R2), inc = P.Incl * Math.PI / 180;
+  for (let a = 0; a <= 96; a++) {
+    const t = a / 96 * Math.PI * 2;
+    pts.push(new THREE.Vector3(cx + Math.cos(t)*R, cy + Math.sin(t)*R*Math.sin(inc), cz + Math.sin(t)*R*Math.cos(inc)));
+  }
+  epiLine.geometry.dispose();
+  epiLine.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+}
+
+const epiCenter = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 20), new THREE.MeshBasicMaterial({ color: 0xb9ad8a }));
+scene.add(epiCenter);
+const spokeGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+scene.add(new THREE.Line(spokeGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 })));
+
+const planetMat = new THREE.MeshStandardMaterial({ color: PRESETS.mars.color, roughness: 0.9, metalness: 0, emissive: 0x000000 });
+const planet = new THREE.Mesh(new THREE.SphereGeometry(PRESETS.mars.size, 40, 40), planetMat);
+scene.add(planet);
+let planetTexKey = null;
+function setPlanetLook(pr) {
+  planetMat.color.setHex(pr.color);
+  planetMat.map = null;
+  if (pr.tex && pr.tex.startsWith('proc:')) {
+    const kind = pr.tex.split(':')[1];
+    planetMat.map = makeProcTex(kind);
+    planetMat.color.setHex(0xffffff);
+  } else if (pr.tex) {
+    planetTexKey = pr.tex;
+    if (texCache[pr.tex]) {
+      planetMat.map = texCache[pr.tex];
+      planetMat.color.setHex(0xffffff);
+    } else {
+      fetchTex(pr.tex, (t) => {
+        texCache[pr.tex] = t;
+        if (planetTexKey === pr.tex) { planetMat.map = t; planetMat.color.setHex(0xffffff); planetMat.needsUpdate = true; }
+      });
+    }
+  } else {
+    planetTexKey = null;
+  }
+  planetMat.needsUpdate = true;
+}
+setPlanetLook(PRESETS.mars);
+
+let trailPts = [], trailLine = null;
+const trailMat = new THREE.LineBasicMaterial({ color: 0xf5edd6, transparent: true, opacity: 0.95 });
+function rebuildTrail() {
+  if (trailLine) { scene.remove(trailLine); trailLine.geometry.dispose(); trailLine = null; }
+  if (trailPts.length > 1) {
+    trailLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(trailPts), trailMat);
+    scene.add(trailLine);
+  }
+}
+
+const $ = id => document.getElementById(id);
+const hudRetro = $('hudRetro');
+let playing = true, t = 0, prevAng = null;
+function clearTrail() { trailPts = []; rebuildTrail(); prevAng = null; hudRetro.style.display = 'none'; }
+function bind(id, out, fn, fmt, noClear) {
+  const r = $(id), o = $(out);
+  const update = () => { const v = +r.value; fn(v); o.textContent = fmt ? fmt(v) : v; };
+  r.addEventListener('input', () => { update(); if (id === 'rR1') rebuildDeferent(); if (!noClear) clearTrail(); });
+  update();
+}
+bind('rR1','oR1', v => P.R1 = v);
+bind('rR2','oR2', v => P.R2 = v);
+bind('rW1','oW1', v => P.W1 = v, v => (v/100).toFixed(1) + '×');
+bind('rW2','oW2', v => P.W2 = v, v => (v/100).toFixed(1) + '×');
+bind('rIncl','oIncl', v => P.Incl = v, v => v + '°');
+bind('rTrail','oTrail', v => P.Trail = v, null, true);
+bind('rSp','oSp', v => P.Speed = v, v => (v/100).toFixed(2).replace(/0$/, '') + '×', true);
+bind('rSun','oSun', v => P.Sun = v, v => (v/100).toFixed(2).replace(/0$/, '') + '×', true);
+
+function applyPreset(key) {
+  const pr = PRESETS[key];
+  const set = (id, v) => { const el = $(id); el.value = v; el.dispatchEvent(new Event('input')); };
+  set('rR1', pr.R1); set('rR2', pr.R2); set('rW1', pr.W1); set('rW2', pr.W2); set('rIncl', pr.Incl);
+  setPlanetLook(pr);
+  planet.geometry.dispose();
+  planet.geometry = new THREE.SphereGeometry(pr.size, 40, 40);
+  document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.p === key));
+  rebuildDeferent();
+  clearTrail();
+}
+document.querySelectorAll('#presets button').forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.p)));
+$('btnPlay').addEventListener('click', () => { playing = !playing; $('btnPlay').textContent = playing ? '⏸ Пауза' : '▶ Пуск'; });
+$('btnClear').addEventListener('click', clearTrail);
+$('btnSun').addEventListener('click', () => {
+  sunOn = !sunOn;
+  sunSys.visible = sunOn;
+  $('btnSun').textContent = sunOn ? '☀ Солнце: вкл' : '☀ Солнце: выкл';
+  $('btnSun').classList.toggle('primary', sunOn);
+});
+$('btnPanel').addEventListener('click', () => {
+  const p = $('panel'); p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+});
+$('btnStory').addEventListener('click', () => $('story').classList.toggle('open'));
+addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+    e.preventDefault(); $('btnPlay').click();
+  }
+  if (e.key === 'h' || e.key === 'H' || e.key === 'р' || e.key === 'Р') $('panel').style.display = 'none';
+});
+
+rebuildDeferent();
+function fit() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', fit);
+fit();
+
+const TAU = Math.PI * 2;
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (playing) t += dt * (P.Speed / 100);
+  const a1 = t * (P.W1 / 100) * 0.9, a2 = t * (P.W2 / 100) * 0.9;
+  const R1 = world(P.R1), R2 = world(P.R2), inc = P.Incl * Math.PI / 180;
+  const ex = Math.cos(a1)*R1, ez = Math.sin(a1)*R1;
+  const px = ex + Math.cos(a1+a2)*R2;
+  const pz = ez + Math.sin(a1+a2)*R2*Math.cos(inc);
+  const py = Math.sin(a1+a2)*R2*Math.sin(inc);
+  epiCenter.position.set(ex, 0, ez);
+  spokeGeo.setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(ex,0,ez)]);
+  rebuildEpicycle(ex, 0, ez);
+  planet.position.set(px, py, pz);
+  if (playing) {
+    trailPts.push(new THREE.Vector3(px, py, pz));
+    while (trailPts.length > P.Trail) trailPts.shift();
+    rebuildTrail();
+  }
+  const ang = Math.atan2(pz, px);
+  if (prevAng !== null) {
+    let d = ang - prevAng;
+    if (d > Math.PI) d -= TAU;
+    if (d < -Math.PI) d += TAU;
+    const retro = d < 0;
+    hudRetro.style.display = retro ? 'inline-block' : 'none';
+    planetMat.emissive.setHex(retro ? 0x5a1408 : 0x000000);
+  }
+  prevAng = ang;
+  earth.rotation.y += dt * 0.4;
+  planet.rotation.y += dt * 0.8;
+  if (sunOn) {
+    const sa = t * (P.Sun / 100) * 0.6;
+    sunMover.position.set(Math.cos(sa) * SUN_R, 0, Math.sin(sa) * SUN_R);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тихо Браге 3D — компромисс: круги Птолемея, точность Коперника</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#ece7d6;font-family:"PT Serif",Georgia,serif}
+#scene{position:fixed;inset:0;width:100vw;height:100vh;display:block;cursor:grab}
+#scene:active{cursor:grabbing}
+#top{position:fixed;top:0;left:0;right:0;display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:10px 14px;pointer-events:none;z-index:5}
+#topBtns{pointer-events:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.iconbtn{font-family:"IBM Plex Mono",monospace;font-size:12px;color:#ece7d6;background:rgba(5,5,8,.72);border:1px solid rgba(236,231,214,.25);border-radius:999px;padding:9px 14px;cursor:pointer;backdrop-filter:blur(8px)}
+.iconbtn:hover{border-color:#c9a227}
+#presets{position:fixed;left:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:5;overflow-y:auto;padding:4px 2px;max-height:72vh}
+#presets button{flex:0 0 auto;font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:8px 12px;min-height:36px;text-align:left;border-radius:999px;cursor:pointer;background:rgba(5,5,8,.72);border:1px solid rgba(236,231,214,.25);color:#e8e1c8;backdrop-filter:blur(8px);white-space:nowrap}
+#presets button:hover{border-color:#c9a227}
+#presets button.on{background:#c9a227;color:#111;border-color:#c9a227;font-weight:500}
+#panel{position:fixed;top:124px;right:14px;width:288px;z-index:5;background:rgba(6,6,10,.78);border:1px solid rgba(201,162,39,.3);border-radius:14px;padding:16px 16px 12px;backdrop-filter:blur(10px);max-height:calc(100vh - 142px);overflow-y:auto}
+#panel h3{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.2em;color:#e3c964;margin:0 0 6px;text-transform:uppercase}
+.ctl{margin:13px 0}
+.ctl label{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:12px;color:#cfc5a3;margin-bottom:6px}
+.ctl output{color:#e3c964}
+input[type=range]{width:100%;height:30px;accent-color:#c9a227;cursor:pointer}
+.row{display:flex;gap:8px;margin:10px 0 4px}
+.row button{flex:1;font-family:"IBM Plex Mono",monospace;font-size:12.5px;padding:11px 8px;border-radius:9px;cursor:pointer;border:1px solid rgba(236,231,214,.25);background:transparent;color:#ece7d6}
+.row button:hover{border-color:#c9a227}
+.row button.primary{background:#c9a227;color:#111;border-color:#c9a227;font-weight:500}
+#legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:#b9ad8a}
+#legend i{display:inline-block;width:20px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+#note{font-size:12.5px;color:#a99f80;line-height:1.55;margin:10px 0 2px}
+#badges{position:fixed;left:14px;bottom:14px;display:flex;gap:8px;flex-wrap:wrap;z-index:5;font-family:"IBM Plex Mono",monospace;font-size:11px}
+.badge{border:1px solid rgba(236,231,214,.2);padding:6px 11px;border-radius:999px;background:rgba(0,0,0,.6)}
+#hudDay{border-color:#c9a227;color:#e3c964}
+#hudRetro{border-color:#c1442e;color:#ffb4a0;display:none}
+#panel::-webkit-scrollbar,#story::-webkit-scrollbar,#presets::-webkit-scrollbar{display:none;width:0;height:0}
+#panel,#story,#presets{scrollbar-width:none;-ms-overflow-style:none}
+#story{position:fixed;left:14px;top:124px;width:310px;z-index:5;background:rgba(6,6,10,.82);border:1px solid rgba(201,162,39,.3);border-radius:14px;padding:14px 16px;backdrop-filter:blur(10px);font-size:13.5px;line-height:1.55;display:none;max-height:calc(100vh - 160px);overflow-y:auto}
+#story.open{display:block}
+#story b{color:#e3c964}
+#story table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+#story td{border-top:1px solid rgba(236,231,214,.12);padding:6px 2px;vertical-align:top}
+#warn{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;background:#3a1e1a;border:1px solid #c1442e;color:#ffb4a0;padding:18px 22px;font-family:monospace;font-size:13px;border-radius:10px;max-width:88vw}
+@media(max-width:760px){
+  #panel{top:auto;bottom:14px;right:8px;left:8px;width:auto;padding:12px;max-height:44vh}
+  #story{left:8px;right:8px;width:auto}
+  #presets{left:8px}
+}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="top">
+  <div id="topBtns">
+    <button class="iconbtn" id="btnStory">☰ Что рассказывать</button>
+    <button class="iconbtn" id="btnPanel">⚙ Пульт</button>
+    <button class="iconbtn" onclick="location.href='ptolemy-3d.html'">⊕ Птолемей</button>
+    <button class="iconbtn" onclick="location.href='copernicus-3d.html'">☀ Коперник</button>
+    <button class="iconbtn" onclick="location.href='index.html'">← Сайт</button>
+  </div>
+</div>
+
+<div id="presets">
+  <button data-p="mars" class="on">Марс</button>
+  <button data-p="venera">Венера</button>
+  <button data-p="jupiter">Юпитер</button>
+</div>
+
+<div id="story">
+  <b>Формула на 30 секунд:</b> компромисс Тихо Браге (1588): Земля неподвижна в центре — зато Солнце обращается вокруг неё за год, а планеты обращаются вокруг Солнца. Жёлтый круг — путь Солнца (<b>деферент</b>), красный — путь планеты вокруг Солнца (<b>эпицикл</b>). Числа настоящие, поэтому петли сами получаются где надо. Сюрприз: это математически тот же Коперник, просто вид с Земли!
+  <table>
+    <tr><td><b>Марс</b></td><td>деферент 1,5 а.е., эпицикл 1 а.е. — как Птолемей и намерил (39,5 : 60!)</td></tr>
+    <tr><td><b>Венера</b></td><td>эпицикл меньше деферента? Нет: деферент — годовой (за Солнцем!), эпицикл — её собственный. Центр всегда у Солнца — как у Птолемея!</td></tr>
+    <tr><td><b>Луна</b></td><td>единственная, кто честно крутится вокруг Земли у всех троих</td></tr>
+  </table>
+  Трюк: Земля стоит, но вокруг оси крутится (смотри на текстуру). Браге не поверил в движение Земли: параллакса звёзд не видно. Вывод: модель может предсказывать верно, объясняя неверно.
+</div>
+
+<div id="panel">
+  <h3>Пульт · Тихо Браге</h3>
+  <div class="ctl"><label>Скорость времени <output id="oSp">40 дн/с</output></label><input id="rSp" type="range" min="2" max="240" value="40"></div>
+  <div class="ctl"><label>Длина следа <output id="oTrail">900</output></label><input id="rTrail" type="range" min="100" max="2500" step="50" value="900"></div>
+  <div class="row">
+    <button class="primary" id="btnPlay">⏸ Пауза</button>
+    <button id="btnClear">Очистить</button>
+  </div>
+  <div id="legend"><span><i style="background:#4aa3ff"></i>Земля (стоит)</span><span><i style="background:#ffd75e"></i>Солнце</span><span><i style="background:#e3c964"></i>деферент</span><span><i style="background:#ff8a70"></i>эпицикл</span></div>
+  <p id="note">Числа настоящие (а.е. и годы), размеры ужаты. Петли — строго в противостояниях, проверь бейджем.</p>
+</div>
+
+<div id="badges"><span class="badge" id="hudDay">ДЕНЬ 0</span><span class="badge" id="hudRetro">● ПОПЯТНОЕ</span></div>
+<div id="warn">⚠ Three.js не загрузился — нужен интернет (CDN unpkg).</div>
+
+<script type="module">
+let THREE, OrbitControls;
+try {
+  THREE = await import('three');
+  ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+} catch (e) {
+  document.getElementById('warn').style.display = 'block';
+  throw e;
+}
+
+// Компромисс Браге: Земля в центре стоит.
+// деферент R = медленное движение, эпицикл r = быстрое. Числа — настоящие а.е. и годы.
+// Марс/Юпитер: деферент — их путь (медленный), эпицикл — земной год (быстрый).
+// Венера: наоборот — деферент годовой (идёт за Солнцем!), эпицикл — её собственный быстрый.
+const TAU = Math.PI * 2;
+const YR = 365.25;
+const PRESETS = {
+  mars:    { R: 8.8, w1: TAU/(1.881*YR), ph1: 0.9, r: 7.0, w2: TAU/YR,         ph2: Math.PI, color: 0xff5a3c, size: 0.20, tex: 'marsmap1k.jpg' },
+  venera:  { R: 7.0, w1: TAU/YR,         ph1: Math.PI, r: 5.5, w2: TAU/(0.615*YR), ph2: 0.4,  color: 0xe3c964, size: 0.34, tex: 'venusmap.jpg' },
+  jupiter: { R: 16.5, w1: TAU/(11.86*YR), ph1: 2.0, r: 7.0, w2: TAU/YR,        ph2: Math.PI, color: 0xd08040, size: 1.05, tex: 'jupitermap.jpg' },
+};
+const P = { daysPerSec: 40, trail: 900 };
+let days = 0, playing = true, cur = 'mars';
+
+const TEX_BASE = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';
+const texLoader = new THREE.TextureLoader();
+function fetchTex(file, onOk) {
+  texLoader.load(TEX_BASE + file,
+    (t) => { t.colorSpace = THREE.SRGBColorSpace; onOk(t); },
+    undefined, () => {});
+}
+
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 600);
+camera.position.set(0, 22, 30);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 4;
+controls.maxDistance = 120;
+
+scene.add(new THREE.AmbientLight(0xfff2d0, 0.9));
+const lamp = new THREE.DirectionalLight(0xfff2d0, 1.6);
+lamp.position.set(14, 20, 10);
+scene.add(lamp);
+
+{
+  const n = 2200, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  const c = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    const r = 90 + Math.random() * 140, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+    pos[i*3] = r * Math.sin(ph) * Math.cos(th);
+    pos[i*3+1] = r * Math.cos(ph);
+    pos[i*3+2] = r * Math.sin(ph) * Math.sin(th);
+    const warm = Math.random();
+    c.setHSL(warm < 0.75 ? 0.11 : 0.6, warm < 0.75 ? 0.35 : 0.3, 0.75 + Math.random() * 0.25);
+    col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 0.6, vertexColors: true, transparent: true, opacity: 0.9 })));
+}
+
+// Земля: стоит в центре (но вокруг оси крутится!)
+const earthMat = new THREE.MeshStandardMaterial({ color: 0x4aa3ff, roughness: 0.85 });
+fetchTex('earthmap1k.jpg', (t) => { earthMat.map = t; earthMat.color.setHex(0xffffff); earthMat.needsUpdate = true; });
+const earth = new THREE.Mesh(new THREE.SphereGeometry(0.36, 48, 48), earthMat);
+scene.add(earth);
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.48, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0x4aa3ff, transparent: true, opacity: 0.15 })));
+// Луна — честно вокруг Земли
+const moonPivot = new THREE.Group();
+const moonMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb, roughness: 1 });
+fetchTex('moonmap1k.jpg', (t) => { moonMat.map = t; moonMat.color.setHex(0xffffff); moonMat.needsUpdate = true; });
+const moon = new THREE.Mesh(new THREE.SphereGeometry(0.1, 20, 20), moonMat);
+moon.position.set(0.7, 0, 0);
+moonPivot.add(moon);
+scene.add(moonPivot);
+
+// Солнце: обращается вокруг Земли за год
+const SUN_W = TAU / YR, SUN_R = 7.0;
+const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(1.1, 40, 40), new THREE.MeshBasicMaterial({ color: 0xffd75e }));
+fetchTex('sunmap.jpg', (t) => { sunMesh.material.map = t; sunMesh.material.color.setHex(0xffffff); sunMesh.material.needsUpdate = true; });
+scene.add(sunMesh);
+const sunGlow = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.25 }));
+scene.add(sunGlow);
+
+// деферент (путь Солнца = жёлтое кольцо) — статичен
+let deferentLine = null, epiLine = null, sunOrbit = null;
+function circleLine(R, color, opacity) {
+  const pts = [];
+  for (let a = 0; a <= 180; a++) pts.push(new THREE.Vector3(Math.cos(a/180*Math.PI*2)*R, 0, Math.sin(a/180*Math.PI*2)*R));
+  return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
+}
+function rebuildRings() {
+  const pr = PRESETS[cur];
+  if (deferentLine) { scene.remove(deferentLine); deferentLine.geometry.dispose(); }
+  if (epiLine) { scene.remove(epiLine); epiLine.geometry.dispose(); }
+  if (sunOrbit) { scene.remove(sunOrbit); sunOrbit.geometry.dispose(); sunOrbit = null; }
+  // у Венеры деферент совпадает с орбитой Солнца — второе кольцо не рисуем (будет мерцать)
+  if (Math.abs(pr.R - SUN_R) > 0.01) {
+    sunOrbit = circleLine(SUN_R, 0xffd75e, 0.35);
+    scene.add(sunOrbit);
+  }
+  deferentLine = circleLine(pr.R, 0xe3c964, 0.9);
+  scene.add(deferentLine);
+  epiLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xff8a70, transparent: true, opacity: 0.85 }));
+  scene.add(epiLine);
+}
+function moveEpicycle(cx, cz) {
+  const pr = PRESETS[cur];
+  const pts = [];
+  for (let a = 0; a <= 96; a++) {
+    const t = a / 96 * Math.PI * 2;
+    pts.push(new THREE.Vector3(cx + Math.cos(t) * pr.r, 0, cz + Math.sin(t) * pr.r));
+  }
+  epiLine.geometry.dispose();
+  epiLine.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+}
+
+// планета на эпицикле
+const planetMat = new THREE.MeshStandardMaterial({ color: PRESETS.mars.color, roughness: 0.9, emissive: 0x000000 });
+const planet = new THREE.Mesh(new THREE.SphereGeometry(PRESETS.mars.size, 40, 40), planetMat);
+scene.add(planet);
+function setPlanetLook(key) {
+  const pr = PRESETS[key];
+  planetMat.color.setHex(pr.color);
+  planetMat.map = null;
+  fetchTex(pr.tex, (t) => {
+    if (cur === key) { planetMat.map = t; planetMat.color.setHex(0xffffff); planetMat.needsUpdate = true; }
+  });
+  planetMat.needsUpdate = true;
+}
+
+// след = настоящая эпициклоида с правильными петлями
+let trailPts = [], trailLine = null;
+const trailMat = new THREE.LineBasicMaterial({ color: 0xf5edd6, transparent: true, opacity: 0.95 });
+function rebuildTrail() {
+  if (trailLine) { scene.remove(trailLine); trailLine.geometry.dispose(); trailLine = null; }
+  if (trailPts.length > 1) {
+    trailLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(trailPts), trailMat);
+    scene.add(trailLine);
+  }
+}
+
+const $ = id => document.getElementById(id);
+const hudDay = $('hudDay'), hudRetro = $('hudRetro');
+let prevAng = null;
+function clearTrail() { trailPts = []; rebuildTrail(); prevAng = null; hudRetro.style.display = 'none'; }
+function bind(id, out, fn, fmt, noClear) {
+  const r = $(id), o = $(out);
+  const update = () => { const v = +r.value; fn(v); o.textContent = fmt ? fmt(v) : v; };
+  r.addEventListener('input', () => { update(); if (!noClear) clearTrail(); });
+  update();
+}
+bind('rSp','oSp', v => P.daysPerSec = v, v => v + ' дн/с', true);
+bind('rTrail','oTrail', v => P.trail = v, null, true);
+
+function applyPreset(key) {
+  cur = key;
+  const pr = PRESETS[key];
+  planetMat.color.setHex(pr.color);
+  planet.geometry.dispose();
+  planet.geometry = new THREE.SphereGeometry(pr.size, 40, 40);
+  setPlanetLook(key);
+  document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.p === key));
+  rebuildRings();
+  clearTrail();
+}
+document.querySelectorAll('#presets button').forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.p)));
+$('btnPlay').addEventListener('click', () => { playing = !playing; $('btnPlay').textContent = playing ? '⏸ Пауза' : '▶ Пуск'; });
+$('btnClear').addEventListener('click', clearTrail);
+$('btnPanel').addEventListener('click', () => {
+  const p = $('panel'); p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+});
+$('btnStory').addEventListener('click', () => $('story').classList.toggle('open'));
+addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+    e.preventDefault(); $('btnPlay').click();
+  }
+});
+
+rebuildRings();
+setPlanetLook('mars');
+function fit() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', fit);
+fit();
+
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (playing) days += dt * P.daysPerSec;
+  const pr = PRESETS[cur];
+
+  // Солнце вокруг Земли (год). Фаза +π: Солнце всегда противоположно
+  // эпициклическому смещению (оба — это «минус Земля»), иначе петли
+  // лягут не в противостояния, а рядом с Солнцем.
+  const sa = (days / YR) * TAU + Math.PI;
+  const sx = Math.cos(sa) * SUN_R, sz = Math.sin(sa) * SUN_R;
+  sunMesh.position.set(sx, 0, sz);
+  sunGlow.position.set(sx, 0, sz);
+
+  // центр эпицикла по деференту + планета по эпициклу
+  const a1 = pr.w1 * days + pr.ph1;
+  const a2 = pr.w2 * days + pr.ph2;
+  const ex = Math.cos(a1) * pr.R, ez = Math.sin(a1) * pr.R;
+  const px = ex + Math.cos(a2) * pr.r, pz = ez + Math.sin(a2) * pr.r;
+  moveEpicycle(ex, ez);
+  planet.position.set(px, 0, pz);
+
+  if (playing) {
+    trailPts.push(new THREE.Vector3(px, 0, pz));
+    while (trailPts.length > P.trail) trailPts.shift();
+    rebuildTrail();
+  }
+
+  const ang = Math.atan2(pz, px);
+  if (prevAng !== null) {
+    let d = ang - prevAng;
+    if (d > Math.PI) d -= TAU;
+    if (d < -Math.PI) d += TAU;
+    const retro = d < 0;
+    hudRetro.style.display = retro ? 'inline-block' : 'none';
+    planetMat.emissive.setHex(retro ? 0x5a1408 : 0x000000);
+  }
+  prevAng = ang;
+
+  earth.rotation.y += dt * 1.2;
+  sunMesh.rotation.y += dt * 0.1;
+  planet.rotation.y += dt * 0.8;
+  moonPivot.rotation.y = -(days / 27.3) * TAU;
+
+  hudDay.textContent = 'ДЕНЬ ' + Math.floor(days);
+  controls.update();
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
